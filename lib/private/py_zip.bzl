@@ -23,6 +23,7 @@ def _py_zip_impl(ctx):
     executable = target[DefaultInfo].files_to_run.executable
     deps = target[DefaultInfo].default_runfiles.files.to_list()
     workspace_dir = ctx.label.workspace_name or "_main"
+    egg = 0
 
     ## Collect runfiles and prepare the arguments list
     args, filtered_deps = [], []
@@ -36,6 +37,14 @@ def _py_zip_impl(ctx):
 
     ## Create a package __main__.py entry
     main_short_path = "__main__.py"
+    
+    print(target)
+    print(executable)
+    py_files = [f for f in target[DefaultInfo].files.to_list() if f.path.endswith(".py")]
+    if not py_files:
+        fail("Expected at least one .py file in the py_binary target")
+    print(py_files)
+    main_py = py_files[0]  # assume first .py is main, or find by name
     if executable and not _matches(main_short_path, ctx.attr.exclude):
         zip_main_entry = ctx.actions.declare_file(basename + "_main_entry.py")
         ctx.actions.expand_template(
@@ -44,7 +53,7 @@ def _py_zip_impl(ctx):
             substitutions = {
                 "%shebang%": DEFAULT_STUB_SHEBANG,
                 # assume the generated app is the first entry in dependencies depset
-                "%main%": "{}/{}".format(workspace_dir, executable.short_path),
+                "%main%": "{}/{}".format(workspace_dir, main_py.short_path),
                 # use the current interpreter to launch the app
                 "PYTHON_BINARY = '%python_binary%'": "PYTHON_BINARY = sys.executable",
                 "%coverage_tool%": "",
